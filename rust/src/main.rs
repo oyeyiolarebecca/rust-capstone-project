@@ -150,8 +150,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
         );
         if let Ok(addr) = addr {
             let addr_str = addr.to_string();
-            let amount =
-                bitcoincore_rpc::bitcoin::SignedAmount::from_sat(output.value.to_sat() as i64);
+            let amount = bitcoincore_rpc::bitcoin::SignedAmount::from_sat(output.value.to_sat() as i64);
             if addr_str == trader_address.to_string() {
                 // This output went to Trader
                 trader_output_address = addr_str;
@@ -165,10 +164,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
     }
 
     // Transaction fee is what the miner earned for including this transaction
-    let fee = tx
-        .fee
-        .unwrap_or(bitcoincore_rpc::bitcoin::SignedAmount::ZERO)
-        .abs();
+    let fee = tx.fee.unwrap_or(bitcoincore_rpc::bitcoin::SignedAmount::ZERO).abs();
 
     // Write the data to ../out.txt in the specified format given in readme.md
     // Create the output file and write all transaction details
