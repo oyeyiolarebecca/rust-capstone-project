@@ -12,28 +12,6 @@ const RPC_URL: &str = "http://127.0.0.1:18443"; // Default regtest RPC port
 const RPC_USER: &str = "alice";
 const RPC_PASS: &str = "password";
 
-// You can use calls not provided in RPC lib API using the generic `call` function.
-// An example of using the `send` RPC call, which doesn't have exposed API.
-// You can also use serde_json `Deserialize` derivation to capture the returned json result.
-fn send(rpc: &Client, addr: &str) -> bitcoincore_rpc::Result<String> {
-    let args = [
-        json!([{addr : 100 }]), // recipient address
-        json!(null),            // conf target
-        json!(null),            // estimate mode
-        json!(null),            // fee rate in sats/vb
-        json!(null),            // Empty option object
-    ];
-
-    #[derive(Deserialize)]
-    struct SendResult {
-        complete: bool,
-        txid: String,
-    }
-    let send_result = rpc.call::<SendResult>("send", &args)?;
-    assert!(send_result.complete);
-    Ok(send_result.txid)
-}
-
 fn main() -> bitcoincore_rpc::Result<()> {
     // Connect to Bitcoin Core RPC
     let rpc = Client::new(
@@ -97,7 +75,6 @@ fn main() -> bitcoincore_rpc::Result<()> {
         .unwrap();
 
     // Send 20 BTC from Miner to Trader
-    // Send 20 BTC from Miner wallet to Trader's address
     // Amount::from_btc converts the decimal 20.0 into the correct Bitcoin amount type
     let txid = miner_rpc.send_to_address(
         &trader_address,
@@ -112,16 +89,13 @@ fn main() -> bitcoincore_rpc::Result<()> {
     println!("Transaction sent! TXID: {}", txid);
 
     // Check transaction in mempool
-
-    // Fetch the unconfirmed transaction from the mempool
     // The mempool is the waiting room — transactions sit here until confirmed in a block
     let mempool_entry =
         rpc.call::<serde_json::Value>("getmempoolentry", &[json!(txid.to_string())])?;
     println!("Mempool entry: {}", mempool_entry);
 
     // Mine 1 block to confirm the transaction
-    // Mining 1 block moves the transaction from the mempool into the blockchain
-    // This is how transactions get confirmed in Bitcoin
+    // This moves the transaction from the mempool into the blockchain permanently
     rpc.generate_to_address(1, &miner_address)?;
     println!("1 block mined — transaction confirmed!");
 
@@ -136,7 +110,9 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let block_height = block_info.height;
 
     // Get Trader output and Miner change from raw transaction outputs
-    // raw_tx.output contains ALL outputs regardless of wallet
+    // A Bitcoin transaction has two outputs:
+    // 1. Payment to Trader (20 BTC)
+    // 2. Change back to Miner (leftover BTC minus fee)
     let mut trader_output_address = String::new();
     let mut trader_output_amount = bitcoincore_rpc::bitcoin::SignedAmount::ZERO;
     let mut miner_change_address = String::new();
@@ -150,7 +126,8 @@ fn main() -> bitcoincore_rpc::Result<()> {
         );
         if let Ok(addr) = addr {
             let addr_str = addr.to_string();
-            let amount = bitcoincore_rpc::bitcoin::SignedAmount::from_sat(output.value.to_sat() as i64);
+            let amount =
+                bitcoincore_rpc::bitcoin::SignedAmount::from_sat(output.value.to_sat() as i64);
             if addr_str == trader_address.to_string() {
                 // This output went to Trader
                 trader_output_address = addr_str;
@@ -164,10 +141,12 @@ fn main() -> bitcoincore_rpc::Result<()> {
     }
 
     // Transaction fee is what the miner earned for including this transaction
-    let fee = tx.fee.unwrap_or(bitcoincore_rpc::bitcoin::SignedAmount::ZERO).abs();
+    let fee = tx
+        .fee
+        .unwrap_or(bitcoincore_rpc::bitcoin::SignedAmount::ZERO)
+        .abs();
 
     // Write the data to ../out.txt in the specified format given in readme.md
-    // Create the output file and write all transaction details
     // Each piece of information goes on its own line as required
     let mut file = File::create("../out.txt")?;
     writeln!(file, "{}", txid)?;
