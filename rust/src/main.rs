@@ -47,23 +47,24 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Create/Load the wallets, named 'Miner' and 'Trader'. Have logic to optionally create/load them if they do not exist or not loaded already.
     let miner_rpc = match rpc.create_wallet("Miner", None, None, None, None) {
-    Ok(_) => Client::new(
-        &format!("{}/wallet/Miner", RPC_URL),
-        Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
-    )?,
-    Err(_) => {
-        let _ = rpc.load_wallet("Miner");
-        Client::new(
+        Ok(_) => Client::new(
             &format!("{}/wallet/Miner", RPC_URL),
             Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
-        )?
-    }
-};
-
+        )?,
+        Err(_) => {
+            let _ = rpc.load_wallet("Miner");
+            Client::new(
+                &format!("{}/wallet/Miner", RPC_URL),
+                Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+            )?
+        }
+    };
 
     // Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
     let miner_address = miner_rpc.get_new_address(Some("Mining Reward"), None)?;
-    let miner_address = miner_address.require_network(bitcoincore_rpc::bitcoin::Network::Regtest).unwrap();
+    let miner_address = miner_address
+        .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
+        .unwrap();
     // Mine 101 blocks to this address
     // WHY 101: Bitcoin has a rule that mining rewards cannot be spent until
     // 100 more blocks are mined on top of them. This is called "coinbase maturity".
@@ -74,8 +75,8 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let miner_balance = miner_rpc.get_balance(None, None)?;
     println!("Miner balance: {} BTC", miner_balance);
 
-        // Load Trader wallet and generate a new address
-        let trader_rpc = match rpc.create_wallet("Trader", None, None, None, None) {
+    // Load Trader wallet and generate a new address
+    let trader_rpc = match rpc.create_wallet("Trader", None, None, None, None) {
         Ok(_) => Client::new(
             &format!("{}/wallet/Trader", RPC_URL),
             Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
@@ -91,8 +92,9 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // This is the address Miner will send 20 BTC to
     let trader_address = trader_rpc.get_new_address(Some("Received"), None)?;
-    let trader_address = trader_address.require_network(bitcoincore_rpc::bitcoin::Network::Regtest).unwrap();
-
+    let trader_address = trader_address
+        .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
+        .unwrap();
 
     // Send 20 BTC from Miner to Trader
     // Send 20 BTC from Miner wallet to Trader's address
@@ -100,19 +102,21 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let txid = miner_rpc.send_to_address(
         &trader_address,
         Amount::from_btc(20.0)?,
-        None, None, None, None, None, None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
     )?;
     println!("Transaction sent! TXID: {}", txid);
-
 
     // Check transaction in mempool
 
     // Fetch the unconfirmed transaction from the mempool
     // The mempool is the waiting room — transactions sit here until confirmed in a block
-    let mempool_entry = rpc.call::<serde_json::Value>(
-        "getmempoolentry",
-        &[json!(txid.to_string())]
-    )?;
+    let mempool_entry =
+        rpc.call::<serde_json::Value>("getmempoolentry", &[json!(txid.to_string())])?;
     println!("Mempool entry: {}", mempool_entry);
 
     // Mine 1 block to confirm the transaction
@@ -120,7 +124,6 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // This is how transactions get confirmed in Bitcoin
     rpc.generate_to_address(1, &miner_address)?;
     println!("1 block mined — transaction confirmed!");
-
 
     // Extract all required transaction details
     // Get full transaction details from the node
@@ -156,7 +159,8 @@ fn main() -> bitcoincore_rpc::Result<()> {
         );
         if let Ok(addr) = addr {
             let addr_str = addr.to_string();
-            let amount = bitcoincore_rpc::bitcoin::SignedAmount::from_sat(output.value.to_sat() as i64);
+            let amount =
+                bitcoincore_rpc::bitcoin::SignedAmount::from_sat(output.value.to_sat() as i64);
             if addr_str == trader_address.to_string() {
                 // This output went to Trader
                 trader_output_address = addr_str;
@@ -170,7 +174,10 @@ fn main() -> bitcoincore_rpc::Result<()> {
     }
 
     // Transaction fee is what the miner earned for including this transaction
-    let fee = tx.fee.unwrap_or(bitcoincore_rpc::bitcoin::SignedAmount::ZERO).abs();
+    let fee = tx
+        .fee
+        .unwrap_or(bitcoincore_rpc::bitcoin::SignedAmount::ZERO)
+        .abs();
 
     // Write the data to ../out.txt in the specified format given in readme.md
     // Create the output file and write all transaction details
