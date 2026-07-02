@@ -135,15 +135,6 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let block_info = rpc.get_block_info(&block_hash)?;
     let block_height = block_info.height;
 
-    // Find Trader's output and Miner's change output from transaction details
-    // A Bitcoin transaction always has two outputs:
-    // 1. The amount sent to the recipient (Trader)
-    // 2. The leftover change sent back to the sender (Miner)
-    let mut trader_output_address = String::new();
-    let mut trader_output_amount = bitcoincore_rpc::bitcoin::SignedAmount::ZERO;
-    let mut miner_change_address = String::new();
-    let mut miner_change_amount = bitcoincore_rpc::bitcoin::SignedAmount::ZERO;
-
     // Get Trader output and Miner change from raw transaction outputs
     // raw_tx.output contains ALL outputs regardless of wallet
     let mut trader_output_address = String::new();
