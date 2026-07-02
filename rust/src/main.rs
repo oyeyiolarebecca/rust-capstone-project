@@ -46,12 +46,53 @@ fn main() -> bitcoincore_rpc::Result<()> {
     println!("Blockchain Info: {:?}", blockchain_info);
 
     // Create/Load the wallets, named 'Miner' and 'Trader'. Have logic to optionally create/load them if they do not exist or not loaded already.
+    let miner_rpc = match rpc.create_wallet("Miner", None, None, None, None) {
+    Ok(_) => Client::new(
+        &format!("{}/wallet/Miner", RPC_URL),
+        Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+    )?,
+    Err(_) => {
+        let _ = rpc.load_wallet("Miner");
+        Client::new(
+            &format!("{}/wallet/Miner", RPC_URL),
+            Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+        )?
+    }
+};
+
 
     // Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
+    let miner_address = miner_rpc.get_new_address(Some("Mining Reward"), None)?;
+    let miner_address = miner_address.require_network(bitcoincore_rpc::bitcoin::Network::Regtest)?;
 
-    // Load Trader wallet and generate a new address
+    // Mine 101 blocks to this address
+    // WHY 101: Bitcoin has a rule that mining rewards cannot be spent until
+    // 100 more blocks are mined on top of them. This is called "coinbase maturity".
+    // So block 1 gives us the reward, blocks 2-101 make it spendable.
+    rpc.generate_to_address(101, &miner_address)?;
+
+    // Print Miner balance to confirm we have funds
+    let miner_balance = miner_rpc.get_balance(None, None)?;
+    println!("Miner balance: {} BTC", miner_balance);
+
+        // Load Trader wallet and generate a new address
+        let trader_rpc = match rpc.create_wallet("Trader", None, None, None, None) {
+        Ok(_) => Client::new(
+            &format!("{}/wallet/Trader", RPC_URL),
+            Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+        )?,
+        Err(_) => {
+            let _ = rpc.load_wallet("Trader");
+            Client::new(
+                &format!("{}/wallet/Trader", RPC_URL),
+                Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+            )?
+        }
+    };
+
 
     // Send 20 BTC from Miner to Trader
+    
 
     // Check transaction in mempool
 
